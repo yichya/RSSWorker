@@ -443,7 +443,9 @@ let deal = async (ctx) => {
 			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
 			if (directLink) {
 				item.link = directResult.url;
-				item.guid = directResult.url;
+				if (card.cardType !== 'live' && card.cardType !== 'live_rcmd') {
+					item.guid = directResult.url;
+				}
 			}
 		} else if (card.cardType === 'draw' && card.extend?.dynIdStr) {
 			// draw 卡片在 module_dynamic 中可能缺失 dynDraw 的兜底
