@@ -1,4 +1,4 @@
-import { renderRss2 } from '../../utils/util';
+import { renderRss2WithFilter } from '../../utils/util';
 import { substr } from 'runes2';
 
 let deal = async (ctx) => {
@@ -102,7 +102,7 @@ let deal = async (ctx) => {
 		items: items,
 	};
 	ctx.header('Content-Type', 'application/xml');
-	return ctx.body(renderRss2(data));
+	return ctx.body(renderRss2WithFilter(data, ctx));
 };
 
 let setup = (route) => {

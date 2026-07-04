@@ -7,6 +7,9 @@
   <description>{{description}}</description>
   <language>{{language}}</language>
   <category>{{category}}</category>
+  {{#lastBuildDate}}
+  <lastBuildDate>{{lastBuildDate}}</lastBuildDate>
+  {{/lastBuildDate}}
   {{#items}}
     <item>
         <title><![CDATA[{{{title}}}]]></title>

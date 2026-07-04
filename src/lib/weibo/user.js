@@ -1,5 +1,5 @@
 import weiboUtils from './utils';
-import { renderRss2 } from '../../utils/util';
+import { renderRss2WithFilter } from '../../utils/util';
 
 let deal = async (ctx) => {
 	const { uid } = ctx.req.param();
@@ -117,7 +117,7 @@ let deal = async (ctx) => {
 		items: resultItems,
 	});
 	ctx.header('Content-Type', 'application/xml');
-	return ctx.body(renderRss2(finalData));
+	return ctx.body(renderRss2WithFilter(finalData, ctx));
 };
 
 let setup = (route) => {

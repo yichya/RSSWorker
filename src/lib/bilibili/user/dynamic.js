@@ -1,4 +1,4 @@
-import { renderRss2 } from '../../../utils/util';
+import { renderRss2WithFilter } from '../../../utils/util';
 import { GetDynSpace } from '../grpc_helper';
 
 let getPubDate = (ptimeLabelText) => {
@@ -38,7 +38,7 @@ let getPubDate = (ptimeLabelText) => {
 let getItemFromDynamicForward = (card) => {
 	// title
 	let title = '';
-	for (let desc of card.extend.desc) {
+	for (let desc of card.extend.desc || []) {
 		title += desc.text;
 	}
 	// link
@@ -46,7 +46,7 @@ let getItemFromDynamicForward = (card) => {
 	// description
 	let description = title + '<br/>';
 	description += `转发自：@${card.extend.origName}<br/>`;
-	for (let desc of card.extend.origDesc) {
+	for (let desc of card.extend.origDesc || []) {
 		description += desc.text;
 	}
 	if (card.extend.origImgUrl) {
@@ -56,7 +56,7 @@ let getItemFromDynamicForward = (card) => {
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let author = '';
 	let category = card.cardType;
-	for (let _module of card.modules) {
+	for (let _module of card.modules || []) {
 		if (_module.moduleType === 'module_author') {
 			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
 			pubDate = getPubDate(ptimeLabelText);
@@ -77,8 +77,11 @@ let getItemFromDynamicForward = (card) => {
 let getItemFromDynamicAv = (card) => {
 	// title
 	let title = '';
-	for (let desc of card.extend.origDesc) {
+	for (let desc of card.extend.origDesc || []) {
 		title += desc.text;
+	}
+	if (!title) {
+		title = getModuleDescText(card.modules);
 	}
 	// link
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
@@ -91,13 +94,15 @@ let getItemFromDynamicAv = (card) => {
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let author = '';
 	let category = card.cardType;
-	for (let _module of card.modules) {
+	for (let _module of card.modules || []) {
 		if (_module.moduleType === 'module_author') {
 			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
 			pubDate = getPubDate(ptimeLabelText);
 			author = _module.moduleAuthor?.author?.name;
 		} else if (_module.moduleType === 'module_desc') {
-			description += `<br/>${_module.moduleDesc?.text}`;
+			if (_module.moduleDesc?.text && _module.moduleDesc.text !== title) {
+				description += `<br/>${_module.moduleDesc.text}`;
+			}
 		}
 	}
 	return {
@@ -112,16 +117,28 @@ let getItemFromDynamicAv = (card) => {
 };
 
 let getItemFromDynamicDraw = (card) => {
-	// title
-	let title = '';
-	for (let desc of card.extend.origDesc) {
-		title += desc.text;
+	// title: opus 自带标题 > desc > module_desc > opus 正文
+	let title = getTextFromParagraph(card.extend?.opusSummary?.title);
+	if (!title) {
+		for (let desc of card.extend.desc || []) {
+			title += desc.text;
+		}
+	}
+	if (!title) {
+		title = getModuleDescText(card.modules);
+	}
+	let opusText = getTextFromParagraph(card.extend?.opusSummary?.summary);
+	if (!title) {
+		title = opusText;
 	}
 	// link
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	// description
+	// description: title + opus 正文 + 封面图 + module_desc
 	let description = title + '<br/>';
-	for (let cover of card.extend?.opusSummary?.covers) {
+	if (opusText && opusText !== title) {
+		description += opusText + '<br/>';
+	}
+	for (let cover of card.extend?.opusSummary?.covers || []) {
 		description += `<img src="${cover.src}"/><br/>`;
 	}
 
@@ -129,13 +146,15 @@ let getItemFromDynamicDraw = (card) => {
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let author = '';
 	let category = card.cardType;
-	for (let _module of card.modules) {
+	for (let _module of card.modules || []) {
 		if (_module.moduleType === 'module_author') {
 			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
 			pubDate = getPubDate(ptimeLabelText);
 			author = _module.moduleAuthor?.author?.name;
 		} else if (_module.moduleType === 'module_desc') {
-			description += `<br/>${_module.moduleDesc?.text}`;
+			if (_module.moduleDesc?.text && _module.moduleDesc.text !== title) {
+				description += `<br/>${_module.moduleDesc.text}`;
+			}
 		}
 	}
 	return {
@@ -157,7 +176,7 @@ let getItemFromDynamicDefault = (card) => {
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let author = '';
 	let category = card.cardType;
-	for (let _module of card.modules) {
+	for (let _module of card.modules || []) {
 		if (_module.moduleType === 'module_desc') {
 			title = _module.moduleDesc?.text;
 			// description = _module?.moduleDesc?.desc.text;
@@ -168,7 +187,7 @@ let getItemFromDynamicDefault = (card) => {
 		}
 	}
 	if (title === '') {
-		for (let desc of card.extend?.origDesc) {
+		for (let desc of card.extend?.desc || []) {
 			title += desc.text;
 		}
 	}
@@ -187,7 +206,7 @@ let getItemFromPaidDynamic = (card) => {
 	let pubDate = new Date().toUTCString();
 	let author = '';
 	let category = card.cardType;
-	for (let _module of card.modules) {
+	for (let _module of card.modules || []) {
 		if (_module.moduleType === 'module_author') {
 			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
 			pubDate = getPubDate(ptimeLabelText);
@@ -203,6 +222,116 @@ let getItemFromPaidDynamic = (card) => {
 		author: author,
 		category: category,
 	};
+};
+
+let queryToBoolean = (val) => {
+	if (val === undefined || val === null) {
+		return false;
+	}
+	return val === '1' || val === 'true' || val === 'True' || val === 'TRUE';
+};
+
+// 从 Paragraph 结构中提取纯文本
+let getTextFromParagraph = (paragraph) => {
+	if (!paragraph) {
+		return '';
+	}
+	if (paragraph.text && Array.isArray(paragraph.text.nodes)) {
+		let result = '';
+		for (let node of paragraph.text.nodes) {
+			if (node.rawText) {
+				result += node.rawText;
+			} else if (node.word?.words) {
+				result += node.word.words;
+			}
+		}
+		return result;
+	}
+	return '';
+};
+
+// 从 dynamic 模块列表中提取 module_desc 文本
+let getModuleDescText = (modules) => {
+	for (let m of modules || []) {
+		if (m.moduleType === 'module_desc' && m.moduleDesc?.text) {
+			return m.moduleDesc.text;
+		}
+	}
+	return '';
+};
+
+// 从动态卡片中提取内容直链（视频/专栏/音频/直播等），返回 { url, text }，失败返回 null
+let getDirectLinkFromModuleDynamic = (dynModule, useAvid = false, dynIdStr = '') => {
+	if (!dynModule) {
+		return null;
+	}
+	let build = (url, label) => (url ? { url, text: `${label}：<a href="${url}">${url}</a>`, label } : null);
+	if (dynModule.dynArchive) {
+		const archive = dynModule.dynArchive;
+		const id = useAvid ? `av${archive.avid}` : archive.bvid;
+		const url = id ? `https://www.bilibili.com/video/${id}` : archive.jumpUrl;
+		return build(url, '视频地址');
+	}
+	if (dynModule.dynDraw) {
+		// 图文动态：使用动态 id 拼接 opus 直链，回退到 API 跳转地址
+		if (dynIdStr) {
+			return build(`https://www.bilibili.com/opus/${dynIdStr}`, '图文地址');
+		}
+		let uri = dynModule.dynDraw.uri;
+		if (uri) {
+			uri = uri.startsWith('//') ? `https:${uri}` : uri;
+		}
+		return build(uri, '图文地址');
+	}
+	if (dynModule.dynArticle) {
+		const url = dynModule.dynArticle.id ? `https://www.bilibili.com/read/cv${dynModule.dynArticle.id}` : dynModule.dynArticle.uri;
+		return build(url, '专栏地址');
+	}
+	if (dynModule.dynMusic) {
+		const url = dynModule.dynMusic.id ? `https://www.bilibili.com/audio/au${dynModule.dynMusic.id}` : dynModule.dynMusic.uri;
+		return build(url, '音频地址');
+	}
+	if (dynModule.dynCommonLive) {
+		const url = dynModule.dynCommonLive.id ? `https://live.bilibili.com/${dynModule.dynCommonLive.id}` : dynModule.dynCommonLive.uri;
+		return build(url, '直播间地址');
+	}
+	if (dynModule.dynLiveRcmd) {
+		try {
+			const livePlayInfo = JSON.parse(dynModule.dynLiveRcmd.content || '{}')?.live_play_info;
+			if (livePlayInfo?.roomId) {
+				return build(`https://live.bilibili.com/${livePlayInfo.roomId}`, '直播间地址');
+			}
+		} catch (e) {}
+		return null;
+	}
+	if (dynModule.dynPgc) {
+		const url = dynModule.dynPgc.epid ? `https://www.bilibili.com/bangumi/play/ep${dynModule.dynPgc.epid}` : dynModule.dynPgc.jumpUrl || dynModule.dynPgc.uri;
+		return build(url, '剧集地址');
+	}
+	if (dynModule.dynUgcSeason) {
+		return build(dynModule.dynUgcSeason.jumpUrl, '合集地址');
+	}
+	if (dynModule.dynCommon) {
+		return build(dynModule.dynCommon.uri || dynModule.dynCommon.jumpUrl, '地址');
+	}
+	if (dynModule.dynForward) {
+		// 转发卡：递归取源动态的内容直链（使用源动态自身的 dynIdStr）
+		return getDirectLinkFromCard(dynModule.dynForward.item, useAvid);
+	}
+	return null;
+};
+
+let getDirectLinkFromCard = (card, useAvid = false) => {
+	if (!card || !Array.isArray(card.modules)) {
+		return null;
+	}
+	let dynIdStr = card.extend?.dynIdStr || '';
+	for (let module of card.modules || []) {
+		if (module.moduleType === 'module_dynamic') {
+			return getDirectLinkFromModuleDynamic(module.moduleDynamic, useAvid, dynIdStr);
+		}
+	}
+	return null;
 };
 
 let getItemFromDynamic = (card) => {
@@ -227,6 +356,8 @@ let getItemFromDynamic = (card) => {
 
 let deal = async (ctx) => {
 	const { uid } = ctx.req.param();
+	const directLink = ctx.req.query('directlink') === '1';
+	const useAvid = queryToBoolean(ctx.req.query('useavid'));
 	let dynSpaceResJson = await GetDynSpace(uid);
 	let dynSpaceRes = JSON.parse(dynSpaceResJson);
 	let dynSpaceList = Array.isArray(dynSpaceRes.list) ? dynSpaceRes.list : [];
@@ -234,11 +365,31 @@ let deal = async (ctx) => {
 	let globalUsername = '';
 	if (dynSpaceList.length !== 0) {
 		globalUsername = dynSpaceList[0].extend.origName;
-	} else {
-		globalUsername = uid;
+	}
+	if (!globalUsername) {
+		throw new Error(`获取用户 ${uid} 信息失败`);
 	}
 	for (let card of dynSpaceList) {
 		let item = getItemFromDynamic(card);
+		let directResult = getDirectLinkFromCard(card, useAvid);
+		if (directResult) {
+			// 在描述末尾追加【视频地址】、【图文地址】等链接
+			let href = directLink ? directResult.url : `https://t.bilibili.com/${card.extend.dynIdStr}`;
+			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
+			if (directLink) {
+				item.link = directResult.url;
+				item.guid = directResult.url;
+			}
+		} else if (card.cardType === 'draw' && card.extend?.dynIdStr) {
+			// draw 卡片在 module_dynamic 中可能缺失 dynDraw 的兜底
+			let opusUrl = `https://www.bilibili.com/opus/${card.extend.dynIdStr}`;
+			let href = directLink ? opusUrl : `https://t.bilibili.com/${card.extend.dynIdStr}`;
+			item.description = (item.description || '') + `<br/>图文地址：<a href="${href}">${href}</a>`;
+			if (directLink) {
+				item.link = opusUrl;
+				item.guid = opusUrl;
+			}
+		}
 		items.push(item);
 	}
 
@@ -250,7 +401,7 @@ let deal = async (ctx) => {
 		// category: 'bilibili',
 		items: items,
 	};
-	let rss = renderRss2(data);
+	let rss = renderRss2WithFilter(data, ctx);
 	ctx.header('Content-Type', 'application/xml');
 	return ctx.body(`${rss}`);
 };
@@ -260,4 +411,4 @@ let setup = (route) => {
 };
 
 export default { setup };
-export { getItemFromDynamic };
+export { getItemFromDynamic, getDirectLinkFromCard, queryToBoolean };
