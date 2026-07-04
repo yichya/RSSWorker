@@ -5,9 +5,26 @@ RSSWorker 是一个轻量级的 RSS 订阅工具，可以部署在 Cloudflare Wo
 ## 支持
 
 注：以下路由均在 `[域名]/rss/` 下，如 `https://example.com/rss/bilibili/user/dynamic/1`。
+> 所有路由均支持以下全局查询参数（RSSHub 兼容）：
+> - `filter=正则`：仅保留标题/描述/作者/分类匹配正则的条目。
+> - `filterout=正则`：剔除标题/描述/作者/分类匹配正则的条目。
+> - `filter_case_sensitive=false`：filter/filterout 大小写不敏感（默认敏感）。
 
 - bilibili 动态 (/bilibili/user/dynamic/:uid)
 - bilibili 视频 (/bilibili/user/video/:uid)
+
+> bilibili 动态/视频路由会在描述末尾追加【视频地址】、【图文地址】等链接（与 RSSHub 行为一致）。
+>
+> bilibili 动态路由支持：
+> - `directlink=1`：item 的 link 和 guid 指向内容直链（视频 `BV/AV` 号、专栏 `cv`、图文 `opus`、直播、番剧等）而非动态页 `https://t.bilibili.com/{dynIdStr}`（默认关闭）。
+>
+> bilibili 视频路由：
+> - 默认使用直链（相当于 `directlink=1`），可通过 `directlink=0` 关闭。
+>
+> bilibili 动态/视频路由共同参数：
+> - `useavid=1`：视频链接使用 AV 号（默认为 BV 号）。
+>
+> 用例：`https://example.com/rss/bilibili/user/dynamic/2267573?directlink=1&useavid=1&filterout=广告`
 - telegram 频道 (/telegram/channel/:username)
 - weibo 用户 (/weibo/user/:uid)
 - 小红书用户 (/xiaohongshu/user/:uid)
