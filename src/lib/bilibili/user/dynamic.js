@@ -292,17 +292,15 @@ let getDirectLinkFromModuleDynamic = (dynModule, useAvid = false, dynIdStr = '')
 		return build(url, '音频地址');
 	}
 	if (dynModule.dynCommonLive) {
-		const url = dynModule.dynCommonLive.id ? `https://live.bilibili.com/${dynModule.dynCommonLive.id}` : dynModule.dynCommonLive.uri;
-		return build(url, '直播间地址');
+		return build(`https://live.bilibili.com/${dynModule.dynCommonLive.id}`, '直播间地址');
 	}
 	if (dynModule.dynLiveRcmd) {
 		try {
-			const livePlayInfo = JSON.parse(dynModule.dynLiveRcmd.content || '{}')?.live_play_info;
-			if (livePlayInfo?.roomId) {
-				return build(`https://live.bilibili.com/${livePlayInfo.roomId}`, '直播间地址');
+			const roomId = JSON.parse(dynModule.dynLiveRcmd.content || '{}')?.live_play_info?.room_id;
+			if (roomId) {
+				return build(`https://live.bilibili.com/${roomId}`, '直播间地址');
 			}
 		} catch (e) {}
-		return null;
 	}
 	if (dynModule.dynPgc) {
 		const url = dynModule.dynPgc.epid ? `https://www.bilibili.com/bangumi/play/ep${dynModule.dynPgc.epid}` : dynModule.dynPgc.jumpUrl || dynModule.dynPgc.uri;
@@ -334,6 +332,69 @@ let getDirectLinkFromCard = (card, useAvid = false) => {
 	return null;
 };
 
+let getItemFromDynamicLive = (card) => {
+	let title = '';
+	let description = '';
+	let pubDate = new Date().toUTCString();
+	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
+	let author = '';
+	let category = card.cardType;
+	for (let _module of card.modules || []) {
+		if (_module.moduleType === 'module_dynamic') {
+			let dyn = _module.moduleDynamic;
+			if (dyn.dynCommonLive) {
+				let live = dyn.dynCommonLive;
+				title = live.title || '';
+				if (live.cover) {
+					description += `<img src="${live.cover}"/><br/>`;
+				}
+				description += (title + '<br/>');
+				if (live.coverLabel) {
+					description += `${live.coverLabel}<br/>`;
+				}
+				if (live.coverLabel2) {
+					description += `${live.coverLabel2}<br/>`;
+				}
+			} else if (dyn.dynLiveRcmd) {
+				let rcmd = dyn.dynLiveRcmd;
+				try {
+					let info = JSON.parse(rcmd.content || '{}')?.live_play_info;
+					if (info) {
+						title = info.title || '';
+						if (info.cover) {
+							description += `<img src="${info.cover}"/><br/>`;
+						}
+						if (info.area_name) {
+							description += `${info.area_name}`;
+						}
+						if (info.watched_show?.text_large) {
+							description += `·${info.watched_show.text_large}`;
+						}
+						description += '<br/>';
+					}
+				} catch (e) {}
+			}
+		} else if (_module.moduleType === 'module_author') {
+			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
+			pubDate = getPubDate(ptimeLabelText);
+			author = _module.moduleAuthor?.author?.name;
+		} else if (_module.moduleType === 'module_desc') {
+			if (_module.moduleDesc?.text) {
+				description += `<br/>${_module.moduleDesc.text}`;
+			}
+		}
+	}
+	return {
+		title: title,
+		link: `https://t.bilibili.com/${card.extend.dynIdStr}`,
+		description: description,
+		pubDate: pubDate,
+		guid: guid,
+		author: author,
+		category: category,
+	};
+};
+
 let getItemFromDynamic = (card) => {
 	if (card.extend.onlyFansProperty.isOnlyFans) {
 		return getItemFromPaidDynamic(card);
@@ -347,6 +408,10 @@ let getItemFromDynamic = (card) => {
 			break;
 		case 'draw':
 			return getItemFromDynamicDraw(card);
+			break;
+		case 'live':
+		case 'live_rcmd':
+			return getItemFromDynamicLive(card);
 			break;
 		default:
 			return getItemFromDynamicDefault(card);
@@ -388,6 +453,13 @@ let deal = async (ctx) => {
 			if (directLink) {
 				item.link = opusUrl;
 				item.guid = opusUrl;
+			}
+		} else if ((card.cardType === 'live' || card.cardType === 'live_rcmd') && card.extend?.dynIdStr) {
+			let href = `https://t.bilibili.com/${card.extend.dynIdStr}`;
+			item.description = (item.description || '') + `<br/>直播间地址：<a href="${href}">${href}</a>`;
+			if (directLink) {
+				item.link = href;
+				item.guid = href;
 			}
 		}
 		items.push(item);
