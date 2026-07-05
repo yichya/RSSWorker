@@ -15,7 +15,7 @@ let deal = async (ctx) => {
 		globalUsername = dynSpaceList[0].extend.origName;
 	}
 	if (!globalUsername) {
-		throw new Error(`获取用户 ${uid} 信息失败`);
+		throw new Error(`获取用户或动态信息失败`);
 	}
 	for (let card of dynSpaceList) {
 		if (card.cardType !== 'av') {
