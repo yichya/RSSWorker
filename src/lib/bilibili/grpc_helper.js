@@ -93,6 +93,11 @@ let requestFetchGrpc = async (url, headers, body_bin) => {
 	if (rsp.status !== 200) {
 		throw new Error(`HTTP ${rsp.status}: ${rsp.statusText}`);
 	}
+	let grpcStatus = rsp.headers.get('grpc-status');
+	if (grpcStatus !== null && grpcStatus !== '0') {
+		let grpcMessage = rsp.headers.get('grpc-message') || '';
+		throw new Error(`gRPC status ${grpcStatus}: ${grpcMessage}`);
+	}
 	let rsp_bin = await rsp.arrayBuffer();
 	if (rsp_bin.byteLength < 5) {
 		throw new Error(`gRPC response body too short: ${rsp_bin.byteLength} bytes`);
