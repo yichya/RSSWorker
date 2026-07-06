@@ -116,7 +116,7 @@ let getItemFromDynamicAv = (card) => {
 	};
 };
 
-let getItemFromDynamicDraw = (card) => {
+let getItemFromDynamicOpus = (card) => {
 	// title: opus 自带标题 > desc > module_desc > opus 正文
 	let title = getTextFromParagraph(card.extend?.opusSummary?.title);
 	if (!title) {
@@ -138,7 +138,17 @@ let getItemFromDynamicDraw = (card) => {
 	if (opusText && opusText !== title) {
 		description += opusText + '<br/>';
 	}
-	for (let cover of card.extend?.opusSummary?.covers || []) {
+	// covers: extend.opusSummary（draw 卡片）和 module_opus_summary（article 卡片）
+	let covers = card.extend?.opusSummary?.covers || [];
+	if (!covers.length) {
+		for (let _module of card.modules || []) {
+			if (_module.moduleType === 'module_opus_summary' && _module.moduleOpusSummary?.covers) {
+				covers = _module.moduleOpusSummary.covers;
+				break;
+			}
+		}
+	}
+	for (let cover of covers) {
 		description += `<img src="${cover.src}"/><br/>`;
 	}
 
@@ -407,7 +417,8 @@ let getItemFromDynamic = (card) => {
 			return getItemFromDynamicAv(card);
 			break;
 		case 'draw':
-			return getItemFromDynamicDraw(card);
+		case 'article':
+			return getItemFromDynamicOpus(card);
 			break;
 		case 'live':
 		case 'live_rcmd':
@@ -436,10 +447,10 @@ let deal = async (ctx) => {
 	}
 	for (let card of dynSpaceList) {
 		let item = getItemFromDynamic(card);
+		let dynIdStr = card.extend?.dynIdStr || '';
 		let directResult = getDirectLinkFromCard(card, useAvid);
 		if (directResult) {
-			// 在描述末尾追加【视频地址】、【图文地址】等链接
-			let href = directLink ? directResult.url : `https://t.bilibili.com/${card.extend.dynIdStr}`;
+			let href = directLink ? directResult.url : `https://t.bilibili.com/${dynIdStr}`;
 			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
 			if (directLink) {
 				item.link = directResult.url;
@@ -447,21 +458,20 @@ let deal = async (ctx) => {
 					item.guid = directResult.url;
 				}
 			}
-		} else if (card.cardType === 'draw' && card.extend?.dynIdStr) {
-			// draw 卡片在 module_dynamic 中可能缺失 dynDraw 的兜底
-			let opusUrl = `https://www.bilibili.com/opus/${card.extend.dynIdStr}`;
-			let href = directLink ? opusUrl : `https://t.bilibili.com/${card.extend.dynIdStr}`;
-			item.description = (item.description || '') + `<br/>图文地址：<a href="${href}">${href}</a>`;
+		} else if (dynIdStr && (card.cardType === 'draw' || card.cardType === 'article')) {
+			let opusUrl = `https://www.bilibili.com/opus/${dynIdStr}`;
+			let href = directLink ? opusUrl : `https://t.bilibili.com/${dynIdStr}`;
+			let label = card.cardType === 'article' ? '专栏地址' : '图文地址';
+			item.description = (item.description || '') + `<br/>${label}：<a href="${href}">${href}</a>`;
 			if (directLink) {
 				item.link = opusUrl;
 				item.guid = opusUrl;
 			}
-		} else if ((card.cardType === 'live' || card.cardType === 'live_rcmd') && card.extend?.dynIdStr) {
-			let href = `https://t.bilibili.com/${card.extend.dynIdStr}`;
+		} else if (dynIdStr && (card.cardType === 'live' || card.cardType === 'live_rcmd')) {
+			let href = `https://t.bilibili.com/${dynIdStr}`;
 			item.description = (item.description || '') + `<br/>直播间地址：<a href="${href}">${href}</a>`;
 			if (directLink) {
 				item.link = href;
-				item.guid = href;
 			}
 		}
 		items.push(item);

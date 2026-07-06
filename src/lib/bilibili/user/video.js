@@ -22,9 +22,10 @@ let deal = async (ctx) => {
 			continue;
 		}
 		let item = getItemFromDynamic(card);
+		let dynIdStr = card.extend?.dynIdStr || '';
 		let directResult = getDirectLinkFromCard(card, useAvid);
 		if (directResult) {
-			let href = directLink ? directResult.url : `https://t.bilibili.com/${card.extend.dynIdStr}`;
+			let href = directLink ? directResult.url : `https://t.bilibili.com/${dynIdStr}`;
 			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
 			if (directLink) {
 				item.link = directResult.url;
