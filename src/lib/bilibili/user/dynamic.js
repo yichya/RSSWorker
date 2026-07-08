@@ -35,7 +35,35 @@ let getPubDate = (ptimeLabelText) => {
 	return pubDate;
 };
 
-let getItemFromDynamicForward = (card) => {
+let extractModuleInfo = (card) => {
+	let info = {
+		ptimeLabelText: '',
+		authorName: '',
+		descText: '',
+		moduleDynamic: null,
+		moduleOpusCovers: [],
+	};
+	for (let _module of card.modules || []) {
+		switch (_module.moduleType) {
+			case 'module_author':
+				info.ptimeLabelText = _module.moduleAuthor?.ptimeLabelText || '';
+				info.authorName = _module.moduleAuthor?.author?.name || '';
+				break;
+			case 'module_desc':
+				info.descText = _module.moduleDesc?.text || '';
+				break;
+			case 'module_dynamic':
+				info.moduleDynamic = _module.moduleDynamic || null;
+				break;
+			case 'module_opus_summary':
+				info.moduleOpusCovers = _module.moduleOpusSummary?.covers || [];
+				break;
+		}
+	}
+	return info;
+};
+
+let getItemFromDynamicForward = (card, modInfo) => {
 	// title
 	let title = '';
 	for (let desc of card.extend.desc || []) {
@@ -52,17 +80,10 @@ let getItemFromDynamicForward = (card) => {
 	if (card.extend.origImgUrl) {
 		description += `<br/><img src="${card.extend.origImgUrl}"/>`;
 	}
-	let pubDate = new Date().toUTCString();
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	let author = '';
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		}
-	}
 	return {
 		title: title,
 		link: link,
@@ -74,14 +95,14 @@ let getItemFromDynamicForward = (card) => {
 	};
 };
 
-let getItemFromDynamicAv = (card) => {
+let getItemFromDynamicAv = (card, modInfo) => {
 	// title
 	let title = '';
 	for (let desc of card.extend.origDesc || []) {
 		title += desc.text;
 	}
 	if (!title) {
-		title = getModuleDescText(card.modules);
+		title = modInfo.descText;
 	}
 	// link
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
@@ -90,20 +111,12 @@ let getItemFromDynamicAv = (card) => {
 	if (card.extend.origImgUrl) {
 		description += `<img src="${card.extend.origImgUrl}"/>`;
 	}
-	let pubDate = new Date().toUTCString();
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	let author = '';
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		} else if (_module.moduleType === 'module_desc') {
-			if (_module.moduleDesc?.text && _module.moduleDesc.text !== title) {
-				description += `<br/>${_module.moduleDesc.text}`;
-			}
-		}
+	if (modInfo.descText && modInfo.descText !== title) {
+		description += `<br/>${modInfo.descText}`;
 	}
 	return {
 		title: title,
@@ -116,7 +129,7 @@ let getItemFromDynamicAv = (card) => {
 	};
 };
 
-let getItemFromDynamicOpus = (card) => {
+let getItemFromDynamicOpus = (card, modInfo) => {
 	// title: opus 自带标题 > desc > module_desc > opus 正文
 	let title = getTextFromParagraph(card.extend?.opusSummary?.title);
 	if (!title) {
@@ -125,7 +138,7 @@ let getItemFromDynamicOpus = (card) => {
 		}
 	}
 	if (!title) {
-		title = getModuleDescText(card.modules);
+		title = modInfo.descText;
 	}
 	let opusText = getTextFromParagraph(card.extend?.opusSummary?.summary);
 	if (!title) {
@@ -141,31 +154,18 @@ let getItemFromDynamicOpus = (card) => {
 	// covers: extend.opusSummary（draw 卡片）和 module_opus_summary（article 卡片）
 	let covers = card.extend?.opusSummary?.covers || [];
 	if (!covers.length) {
-		for (let _module of card.modules || []) {
-			if (_module.moduleType === 'module_opus_summary' && _module.moduleOpusSummary?.covers) {
-				covers = _module.moduleOpusSummary.covers;
-				break;
-			}
-		}
+		covers = modInfo.moduleOpusCovers;
 	}
 	for (let cover of covers) {
 		description += `<img src="${cover.src}"/><br/>`;
 	}
 
-	let pubDate = new Date().toUTCString();
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	let author = '';
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		} else if (_module.moduleType === 'module_desc') {
-			if (_module.moduleDesc?.text && _module.moduleDesc.text !== title) {
-				description += `<br/>${_module.moduleDesc.text}`;
-			}
-		}
+	if (modInfo.descText && modInfo.descText !== title) {
+		description += `<br/>${modInfo.descText}`;
 	}
 	return {
 		title: title,
@@ -178,23 +178,16 @@ let getItemFromDynamicOpus = (card) => {
 	};
 };
 
-let getItemFromDynamicDefault = (card) => {
+let getItemFromDynamicDefault = (card, modInfo) => {
 	let title = '';
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let description = '';
-	let pubDate = new Date().toUTCString();
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	let author = '';
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_desc') {
-			title = _module.moduleDesc?.text;
-			// description = _module?.moduleDesc?.desc.text;
-		} else if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		}
+	if (modInfo.descText) {
+		title = modInfo.descText;
 	}
 	if (title === '') {
 		for (let desc of card.extend?.desc || []) {
@@ -212,17 +205,10 @@ let getItemFromDynamicDefault = (card) => {
 	};
 };
 
-let getItemFromPaidDynamic = (card) => {
-	let pubDate = new Date().toUTCString();
-	let author = '';
+let getItemFromPaidDynamic = (card, modInfo) => {
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		}
-	}
 	return {
 		title: '充电专属动态',
 		link: `https://t.bilibili.com/${card.extend.dynIdStr}`,
@@ -256,16 +242,6 @@ let getTextFromParagraph = (paragraph) => {
 			}
 		}
 		return result;
-	}
-	return '';
-};
-
-// 从 dynamic 模块列表中提取 module_desc 文本
-let getModuleDescText = (modules) => {
-	for (let m of modules || []) {
-		if (m.moduleType === 'module_desc' && m.moduleDesc?.text) {
-			return m.moduleDesc.text;
-		}
 	}
 	return '';
 };
@@ -342,57 +318,50 @@ let getDirectLinkFromCard = (card, useAvid = false) => {
 	return null;
 };
 
-let getItemFromDynamicLive = (card) => {
+let getItemFromDynamicLive = (card, modInfo) => {
 	let title = '';
 	let description = '';
-	let pubDate = new Date().toUTCString();
+	let pubDate = getPubDate(modInfo.ptimeLabelText);
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
-	let author = '';
+	let author = modInfo.authorName;
 	let category = card.cardType;
-	for (let _module of card.modules || []) {
-		if (_module.moduleType === 'module_dynamic') {
-			let dyn = _module.moduleDynamic;
-			if (dyn.dynCommonLive) {
-				let live = dyn.dynCommonLive;
-				title = live.title || '';
-				if (live.cover) {
-					description += `<img src="${live.cover}"/><br/>`;
-				}
-				description += (title + '<br/>');
-				if (live.coverLabel) {
-					description += `${live.coverLabel}<br/>`;
-				}
-				if (live.coverLabel2) {
-					description += `${live.coverLabel2}<br/>`;
-				}
-			} else if (dyn.dynLiveRcmd) {
-				let rcmd = dyn.dynLiveRcmd;
-				try {
-					let info = JSON.parse(rcmd.content || '{}')?.live_play_info;
-					if (info) {
-						title = info.title || '';
-						if (info.cover) {
-							description += `<img src="${info.cover}"/><br/>`;
-						}
-						if (info.area_name) {
-							description += `${info.area_name}`;
-						}
-						if (info.watched_show?.text_large) {
-							description += `·${info.watched_show.text_large}`;
-						}
-						description += '<br/>';
+	let dyn = modInfo.moduleDynamic;
+	if (dyn) {
+		if (dyn.dynCommonLive) {
+			let live = dyn.dynCommonLive;
+			title = live.title || '';
+			if (live.cover) {
+				description += `<img src="${live.cover}"/><br/>`;
+			}
+			description += (title + '<br/>');
+			if (live.coverLabel) {
+				description += `${live.coverLabel}<br/>`;
+			}
+			if (live.coverLabel2) {
+				description += `${live.coverLabel2}<br/>`;
+			}
+		} else if (dyn.dynLiveRcmd) {
+			let rcmd = dyn.dynLiveRcmd;
+			try {
+				let info = JSON.parse(rcmd.content || '{}')?.live_play_info;
+				if (info) {
+					title = info.title || '';
+					if (info.cover) {
+						description += `<img src="${info.cover}"/><br/>`;
 					}
-				} catch (e) {}
-			}
-		} else if (_module.moduleType === 'module_author') {
-			let ptimeLabelText = _module.moduleAuthor?.ptimeLabelText;
-			pubDate = getPubDate(ptimeLabelText);
-			author = _module.moduleAuthor?.author?.name;
-		} else if (_module.moduleType === 'module_desc') {
-			if (_module.moduleDesc?.text) {
-				description += `<br/>${_module.moduleDesc.text}`;
-			}
+					if (info.area_name) {
+						description += `${info.area_name}`;
+					}
+					if (info.watched_show?.text_large) {
+						description += `·${info.watched_show.text_large}`;
+					}
+					description += '<br/>';
+				}
+			} catch (e) {}
 		}
+	}
+	if (modInfo.descText) {
+		description += `<br/>${modInfo.descText}`;
 	}
 	return {
 		title: title,
@@ -406,36 +375,39 @@ let getItemFromDynamicLive = (card) => {
 };
 
 let getItemFromDynamic = (card) => {
+	let modInfo = extractModuleInfo(card);
+	let item;
 	if (card.extend.onlyFansProperty.isOnlyFans) {
-		return getItemFromPaidDynamic(card);
+		item = getItemFromPaidDynamic(card, modInfo);
+	} else {
+		switch (card.cardType) {
+			case 'forward':
+				item = getItemFromDynamicForward(card, modInfo);
+				break;
+			case 'av':
+				item = getItemFromDynamicAv(card, modInfo);
+				break;
+			case 'draw':
+			case 'article':
+				item = getItemFromDynamicOpus(card, modInfo);
+				break;
+			case 'live':
+			case 'live_rcmd':
+				item = getItemFromDynamicLive(card, modInfo);
+				break;
+			default:
+				item = getItemFromDynamicDefault(card, modInfo);
+				break;
+		}
 	}
-	switch (card.cardType) {
-		case 'forward':
-			return getItemFromDynamicForward(card);
-			break;
-		case 'av':
-			return getItemFromDynamicAv(card);
-			break;
-		case 'draw':
-		case 'article':
-			return getItemFromDynamicOpus(card);
-			break;
-		case 'live':
-		case 'live_rcmd':
-			return getItemFromDynamicLive(card);
-			break;
-		default:
-			return getItemFromDynamicDefault(card);
-			break;
-	}
+	return { item, moduleDynamic: modInfo.moduleDynamic };
 };
 
 let deal = async (ctx) => {
 	const { uid } = ctx.req.param();
 	const directLink = ctx.req.query('directlink') === '1';
 	const useAvid = queryToBoolean(ctx.req.query('useavid'));
-	let dynSpaceResJson = await GetDynSpace(uid);
-	let dynSpaceRes = JSON.parse(dynSpaceResJson);
+	let dynSpaceRes = await GetDynSpace(uid);
 	let dynSpaceList = Array.isArray(dynSpaceRes.list) ? dynSpaceRes.list : [];
 	let items = [];
 	let globalUsername = '';
@@ -446,9 +418,9 @@ let deal = async (ctx) => {
 		throw new Error(`获取用户或动态信息失败`);
 	}
 	for (let card of dynSpaceList) {
-		let item = getItemFromDynamic(card);
+		let { item, moduleDynamic } = getItemFromDynamic(card);
 		let dynIdStr = card.extend?.dynIdStr || '';
-		let directResult = getDirectLinkFromCard(card, useAvid);
+		let directResult = moduleDynamic ? getDirectLinkFromModuleDynamic(moduleDynamic, useAvid, dynIdStr) : null;
 		if (directResult) {
 			let href = directLink ? directResult.url : `https://t.bilibili.com/${dynIdStr}`;
 			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
@@ -495,4 +467,4 @@ let setup = (route) => {
 };
 
 export default { setup };
-export { getItemFromDynamic, getDirectLinkFromCard, queryToBoolean };
+export { getItemFromDynamic, getDirectLinkFromCard, getDirectLinkFromModuleDynamic, queryToBoolean };

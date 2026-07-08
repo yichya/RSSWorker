@@ -113,7 +113,7 @@ let requestFetchGrpc = async (url, headers, body_bin) => {
 	let rsp_message = rsp_data.slice(5);
 	let dynSpaceRsp = new DynSpaceRsp();
 	dynSpaceRsp.fromBinary(rsp_message);
-	return dynSpaceRsp.toJsonString();
+	return dynSpaceRsp.toJson();
 };
 
 let GetDynSpace = async (uid, accessKey = '') => {
