@@ -1,4 +1,4 @@
-import { getItemFromDynamic, getDirectLinkFromCard, queryToBoolean } from './dynamic.js';
+import { getItemFromDynamic, getDirectLinkFromModuleDynamic, queryToBoolean } from './dynamic.js';
 import { renderRss2WithFilter } from '../../../utils/util';
 import { GetDynSpace } from '../grpc_helper';
 
@@ -6,8 +6,7 @@ let deal = async (ctx) => {
 	const { uid } = ctx.req.param();
 	const directLink = ctx.req.query('directlink') !== '0';
 	const useAvid = queryToBoolean(ctx.req.query('useavid'));
-	let dynSpaceResJson = await GetDynSpace(uid);
-	let dynSpaceRes = JSON.parse(dynSpaceResJson);
+	let dynSpaceRes = await GetDynSpace(uid);
 	let dynSpaceList = Array.isArray(dynSpaceRes.list) ? dynSpaceRes.list : [];
 	let items = [];
 	let globalUsername = '';
@@ -21,9 +20,9 @@ let deal = async (ctx) => {
 		if (card.cardType !== 'av') {
 			continue;
 		}
-		let item = getItemFromDynamic(card);
+		let { item, moduleDynamic } = getItemFromDynamic(card);
 		let dynIdStr = card.extend?.dynIdStr || '';
-		let directResult = getDirectLinkFromCard(card, useAvid);
+		let directResult = moduleDynamic ? getDirectLinkFromModuleDynamic(moduleDynamic, useAvid, dynIdStr) : null;
 		if (directResult) {
 			let href = directLink ? directResult.url : `https://t.bilibili.com/${dynIdStr}`;
 			item.description = (item.description || '') + `<br/>${directResult.label}：<a href="${href}">${href}</a>`;
