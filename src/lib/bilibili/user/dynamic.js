@@ -241,7 +241,7 @@ let getTextFromParagraph = (paragraph) => {
 				result += node.word.words;
 			}
 		}
-		return result;
+		return result.replace(/\n/g, '<br/>');
 	}
 	return '';
 };
