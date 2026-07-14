@@ -131,25 +131,26 @@ let getItemFromDynamicAv = (card, modInfo) => {
 
 let getItemFromDynamicOpus = (card, modInfo) => {
 	// title: opus 自带标题 > desc > module_desc > opus 正文
-	let title = getTextFromParagraph(card.extend?.opusSummary?.title);
-	if (!title) {
+	let titleText = getTextFromParagraph(card.extend?.opusSummary?.title);
+	if (!titleText) {
 		for (let desc of card.extend.desc || []) {
-			title += desc.text;
+			titleText += desc.text;
 		}
 	}
-	if (!title) {
-		title = modInfo.descText;
+	if (!titleText) {
+		titleText = modInfo.descText;
 	}
 	let opusText = getTextFromParagraph(card.extend?.opusSummary?.summary);
-	if (!title) {
-		title = opusText;
+	if (!titleText) {
+		titleText = opusText;
 	}
+	let title = titleText.replace(/\n/g, ' ');
 	// link
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	// description: title + opus 正文 + 封面图 + module_desc
-	let description = title + '<br/>';
-	if (opusText && opusText !== title) {
-		description += opusText + '<br/>';
+	let description = titleText.replace(/\n/g, '<br/>') + '<br/>';
+	if (opusText && opusText !== titleText) {
+		description += opusText.replace(/\n/g, '<br/>') + '<br/>';
 	}
 	// covers: extend.opusSummary（draw 卡片）和 module_opus_summary（article 卡片）
 	let covers = card.extend?.opusSummary?.covers || [];
@@ -164,8 +165,8 @@ let getItemFromDynamicOpus = (card, modInfo) => {
 	let guid = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	let author = modInfo.authorName;
 	let category = card.cardType;
-	if (modInfo.descText && modInfo.descText !== title) {
-		description += `<br/>${modInfo.descText}`;
+	if (modInfo.descText && modInfo.descText !== titleText) {
+		description += `<br/>${modInfo.descText.replace(/\n/g, '<br/>')}`;
 	}
 	return {
 		title: title,
@@ -241,7 +242,7 @@ let getTextFromParagraph = (paragraph) => {
 				result += node.word.words;
 			}
 		}
-		return result.replace(/\n/g, '<br/>');
+		return result;
 	}
 	return '';
 };
