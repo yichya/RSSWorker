@@ -144,7 +144,8 @@ let getItemFromDynamicOpus = (card, modInfo) => {
 	if (!titleText) {
 		titleText = opusText;
 	}
-	let title = titleText.replace(/\n/g, ' ');
+	let firstNewline = titleText.indexOf('\n');
+	let title = firstNewline === -1 ? titleText : titleText.substring(0, firstNewline);
 	// link
 	let link = `https://t.bilibili.com/${card.extend.dynIdStr}`;
 	// description: title + opus 正文 + 封面图 + module_desc
